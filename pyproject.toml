@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "dotenv>=0.9.9",
+    "faster-whisper>=1.2.1",
     "langchain-google-genai>=4.2.1",
+    "numpy>=2.4.2",
     "sounddevice>=0.5.5",
 ]
