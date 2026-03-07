@@ -1,10 +1,13 @@
 from faster_whisper import WhisperModel
 import sounddevice as sd
 import numpy as np
+from queue import Queue
+from threading import Thread
 
 class STTPipeline:
     def __init__(self):
         self.ears = WhisperModel("small", device="auto", compute_type="int8")
+        self.mic_q = Queue()
 
     def _record_audio(self, seconds:int = 4, samplerate: int = 16000):
 
@@ -38,3 +41,6 @@ class STTPipeline:
         print("Detected language: ", info.language)
         print("User: ", text)
         return text
+    
+    def start(self):
+        pass
