@@ -4,7 +4,7 @@ import numpy as np
 from queue import Queue
 from threading import Thread
 
-class STTPipeline:
+class EarDrum:
     def __init__(self):
         self.ears = WhisperModel("small", device="auto", compute_type="int8")
         self.mic_q = Queue()

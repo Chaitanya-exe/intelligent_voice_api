@@ -9,5 +9,6 @@ dependencies = [
     "faster-whisper>=1.2.1",
     "langchain-google-genai>=4.2.1",
     "numpy>=2.4.2",
+    "silero-vad>=6.2.1",
     "sounddevice>=0.5.5",
 ]
