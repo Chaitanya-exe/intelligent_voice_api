@@ -1,39 +1,42 @@
-from langchain_core.messages import HumanMessage, SystemMessage
+from threading import Thread
 from brain.brain_voice import BrainVoice
 from ears.eardrum import EarDrum
-
-tts = BrainVoice()
-stt = EarDrum()
-system_prompt = """
-You are a voice assisstant who talks in hindi, your task is make simple conversations based on user input. Your text output will be used in text-to-speech engine, so it is neccessary to produce correct hindi text with proper punctuations according to the conversation, for native english words that don't have a translation in hindi produce text, pronounced same as english when spoken
-"""
+from vad.vad_pipe import VadPipeline
+from conversation.controller import ConversationController
+from queue import Queue
+import time
 
 def main():
+    print("initialising voice assisstant...")
+    text_q, speech_q = Queue(), Queue()
+    controller = ConversationController()
+    vad = VadPipeline(
+        speech_q=speech_q,
+        controller=controller
+    )
+    ears = EarDrum(
+        speech_q=speech_q,
+        text_q=text_q
+    )
+    tts = BrainVoice(
+        text_q=text_q,
+        controller=controller
+    )  
+    Thread(target=vad.start, daemon=True).start()
+    Thread(target=ears.worker, daemon=True).start()
     tts.start()
+    print("Voice assisstant started.")
+    print("start speaking with your voice assisstant.")
+    print("Listening...")
     while True:
-
-        input("Press enter to record your message: ")
-        
-        user = stt.get_transcription()
-
-        conversation = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user)
-        ]
-        print("Assisstant: ")
-        tts.tokenise_sentences(conversation)
-        print("\n")
-
+        time.sleep(1)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt as e:
-        tts.speaker_stream.stop()
-        tts.speaker_stream.close()
+        
         print("\nUser exitted program")
     except Exception as e:
         import traceback
         traceback.print_exc()
-        tts.speaker_stream.stop()
-        tts.speaker_stream.close()

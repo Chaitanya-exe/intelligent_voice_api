@@ -1,6 +1,5 @@
 from faster_whisper import WhisperModel
 from queue import Queue
-from threading import Thread
 
 class EarDrum:
     def __init__(self, speech_q: Queue, text_q: Queue):
