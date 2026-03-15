@@ -22,9 +22,10 @@ def main():
         text_q=text_q,
         controller=controller
     )  
-    Thread(target=vad.start, daemon=True).start()
-    Thread(target=ears.worker, daemon=True).start()
-    tts.start()
+    Thread(target=vad.start).start()
+    Thread(target=ears.worker).start()
+    Thread(target=tts.llm_worker).start()
+    Thread(target=tts.tts_worker).start()
     print("Voice assisstant started.")
     print("start speaking with your voice assisstant.")
     print("Listening...")

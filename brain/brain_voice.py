@@ -11,7 +11,7 @@ from conversation.controller import ConversationController
 
 class BrainVoice:
     def __init__(self, text_q: Queue, controller: ConversationController):
-        self.voice = KPipeline(lang_code='h')
+        self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
         self.system_prompt = """
 You are a voice assisstant who talks in hindi, your task is make simple conversations based on user input. Your text output will be used in text-to-speech engine, so it is neccessary to produce correct hindi text with proper punctuations according to the conversation, for native english words that don't have a translation in hindi produce text, pronounced same as english when spoken
@@ -31,6 +31,9 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
             user = self.text_q.get()
 
+            if not user or not user.strip():
+                continue
+
             sentence_buffer = ""
 
             conversation = [
@@ -47,7 +50,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
                 sentence_buffer += token
 
-                if sentence_buffer.endswith(("।", ".", "?", "!")):
+                if any(p in sentence_buffer for p in ("।", ".", "?", "!")):
 
                     clean = sentence_buffer.strip()
 
@@ -81,18 +84,15 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
             for _, _, audio in generator:
                 if self.controller.should_interrupt():
+                    print("Interrupt was called somehow...")
                     while not self.q.empty():
                         try:
                             self.q.get_nowait()
                         except:
                             break
                     break
-
                 self.speaker_stream.write(audio)
             
             self.controller.stop_ai()
             self.q.task_done()
-    
-    def start(self):
-        threading.Thread(target=self.llm_worker, daemon=True).start()
-        threading.Thread(target=self.tts_worker, daemon=True).start()
+        

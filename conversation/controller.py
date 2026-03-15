@@ -28,4 +28,4 @@ class ConversationController:
     
     def should_interrupt(self):
         with self.lock:
-            return self.should_interrupt
+            return self.interrupt

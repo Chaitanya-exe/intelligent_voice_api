@@ -13,15 +13,21 @@ class EarDrum:
 
             audio = self.speech_q.get()
 
-            segments, _ = self.model.transcribe(
+            segments, info = self.model.transcribe(
                 audio,
                 beam_size=1,
                 language="en",
                 condition_on_previous_text=False
             )
 
+            print(f"{info.language}")
+
             text = " ".join(seg.text for seg in segments)
 
+            if not text:
+                print("No text detected")
+                return
+            print(f"User: {text}")
             self.text_q.put(text)
 
             self.speech_q.task_done()

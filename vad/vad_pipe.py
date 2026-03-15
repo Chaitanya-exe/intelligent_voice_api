@@ -6,32 +6,75 @@ from conversation.controller import ConversationController
 from queue import Queue
 
 class VadPipeline:
-    def __init__(self, controller: ConversationController, speech_q: Queue, samplerate:int = 16000):
-        self.samplerate = samplerate
-        self.q = speech_q
-        self.model = load_silero_vad()
-        self.vad = VADIterator(model=self.model)
-        self.buffer = []
+    def __init__(self, controller: ConversationController, speech_q, samplerate=16000):
+
         self.controller = controller
+        self.q = speech_q
+        self.samplerate = samplerate
+
+        self.model = load_silero_vad()
+        self.vad = VADIterator(self.model)
+
+        # rolling audio buffer
+        self.audio_buffer = np.zeros(0, dtype=np.float32)
+
+        # speech start position
+        self.speech_start = None
 
     def process_audio(self, audio):
-        speech = self.vad(audio)
 
-        if speech:
-            self.controller.start_user()
-            self.buffer.append(speech)
-        else:
-            if len(self.buffer) > 1:
-                segment = np.concatenate(self.buffer)
-                self.controller.stop_user()
-                self.q.put(segment)
-                self.buffer = []
-    
-    def start(self):
-        def callback(indata, frames, time, status):
-            audio = indata[:,0]
-            self.process_audio(audio)
+        audio = audio.astype(np.float32)
+
+        # append to rolling buffer
+        self.audio_buffer = np.concatenate((self.audio_buffer, audio))
+
+        result = self.vad(audio)
+
+        if result is None:
+            return
         
+        if self.controller.ai_speaking:
+            self.audio_buffer = np.zeros(0, dtype=np.float32)
+            return
+        
+        # speech started
+        if "start" in result:
+            print("Speech started")
+            self.controller.start_user()
+
+            self.speech_start = result["start"]
+
+        # speech ended
+        if "end" in result and self.speech_start is not None:
+
+            end = result["end"]
+
+            if end <= self.speech_start:
+                return
+
+            segment = self.audio_buffer[self.speech_start:end]
+
+            print("Speech segment length:", segment.shape)
+
+            self.controller.stop_user()
+
+            if len(segment) > 4000:
+                self.q.put(segment)
+
+            # trim buffer to prevent unlimited growth
+            self.audio_buffer = self.audio_buffer[end:]
+            self.speech_start = None
+            self.vad.reset_states()
+
+    def start(self):
+
+        def callback(indata, frames, time, status):
+
+            audio = indata[:, 0]
+            audio = np.squeeze(audio)
+
+            self.process_audio(audio)
+
         stream = sd.InputStream(
             samplerate=self.samplerate,
             blocksize=512,
@@ -40,6 +83,7 @@ class VadPipeline:
         )
 
         stream.start()
+
         print("Listening...")
 
         while True:
