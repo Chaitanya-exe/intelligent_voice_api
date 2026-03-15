@@ -12,3 +12,6 @@ wheels/
 
 # voice samples
 *.wav
+
+# scribble files
+*.txt

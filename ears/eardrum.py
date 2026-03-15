@@ -27,7 +27,6 @@ class EarDrum:
             if not text:
                 print("No text detected")
                 return
-            print(f"User: {text}")
             self.text_q.put(text)
 
             self.speech_q.task_done()

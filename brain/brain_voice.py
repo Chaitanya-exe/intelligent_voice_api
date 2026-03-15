@@ -2,14 +2,15 @@ from queue import Queue
 from dotenv import load_dotenv
 load_dotenv()
 import sounddevice as sd
-import threading
 from kokoro import KPipeline
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 import time
 from conversation.controller import ConversationController
 
 class BrainVoice:
+    MAX_HISTORY = 20
+
     def __init__(self, text_q: Queue, controller: ConversationController):
         self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
@@ -17,6 +18,7 @@ class BrainVoice:
 You are a voice assisstant who talks in hindi, your task is make simple conversations based on user input. Your text output will be used in text-to-speech engine, so it is neccessary to produce correct hindi text with proper punctuations according to the conversation, for native english words that don't have a translation in hindi produce text, pronounced same as english when spoken
 """
         self.q = Queue()
+        self.history = []
         self.text_q = text_q
         self.controller = controller
         self.speaker_stream = sd.OutputStream(
@@ -30,45 +32,55 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
         while True:
 
             user = self.text_q.get()
-
+            print("User: ", user)
             if not user or not user.strip():
+                print("No input message...")
                 continue
 
             sentence_buffer = ""
 
             conversation = [
-                SystemMessage(content=self.system_prompt),
-                HumanMessage(content=user)
+                SystemMessage(content=self.system_prompt)
             ]
+            conversation.extend(self.history)
+            conversation.append(HumanMessage(content=user))
+
 
             print("Assistant:", end=" ")
+            assistant_txt = ""
+            try:
+                for chunk in self.model.stream(conversation):
 
-            for chunk in self.model.stream(conversation):
+                    token = chunk.content or ""
+                    print(token, end="", flush=True)
 
-                token = chunk.content or ""
-                print(token, end="", flush=True)
+                    sentence_buffer += token
+                    assistant_txt += token
+                    if sentence_buffer.strip().endswith(("।", ".", "?", "!")):
 
-                sentence_buffer += token
+                        clean = sentence_buffer.strip()
 
-                if any(p in sentence_buffer for p in ("।", ".", "?", "!")):
+                        if clean:
 
-                    clean = sentence_buffer.strip()
+                            if self.q.qsize() > 3:
+                                time.sleep(0.05)
 
-                    if clean:
+                            self.q.put(clean)
 
-                        if self.q.qsize() > 3:
-                            time.sleep(0.05)
+                        sentence_buffer = ""
 
-                        self.q.put(clean)
+                if sentence_buffer.strip():
+                    self.q.put(sentence_buffer.strip())
+                print("Assistant text: ", assistant_txt)
+                self.history.append(HumanMessage(content=user))
+                self.history.append(AIMessage(content=assistant_txt.strip()))
 
-                    sentence_buffer = ""
+                if len(self.history) > BrainVoice.MAX_HISTORY:
+                    self.history = self.history[-BrainVoice.MAX_HISTORY:]
 
-            if sentence_buffer.strip():
-                self.q.put(sentence_buffer.strip())
-
-            print()
-
-            self.text_q.task_done()
+                self.text_q.task_done()
+            except Exception as e:
+                print("Error occured: ", str(e))
         
     def tts_worker(self):
         while True:

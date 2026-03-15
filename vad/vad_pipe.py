@@ -6,7 +6,7 @@ from conversation.controller import ConversationController
 from queue import Queue
 
 class VadPipeline:
-    def __init__(self, controller: ConversationController, speech_q, samplerate=16000):
+    def __init__(self, controller: ConversationController, speech_q: Queue, samplerate=16000):
 
         self.controller = controller
         self.q = speech_q
@@ -39,9 +39,18 @@ class VadPipeline:
         
         # speech started
         if "start" in result:
+
+            if self.controller.ai_speaking:
+                print("Interrupt detected...")
+                self.controller.stop_ai()
+                self.audio_buffer = np.zeros(0, dtype=np.float32)
+                self.vad.reset_states()
+                self.speech_start = None
+                return 
+                
+
             print("Speech started")
             self.controller.start_user()
-
             self.speech_start = result["start"]
 
         # speech ended
@@ -49,6 +58,9 @@ class VadPipeline:
 
             end = result["end"]
 
+            if self.speech_start is None:
+                return
+            
             if end <= self.speech_start:
                 return
 
@@ -61,10 +73,13 @@ class VadPipeline:
             if len(segment) > 4000:
                 self.q.put(segment)
 
-            # trim buffer to prevent unlimited growth
-            self.audio_buffer = self.audio_buffer[end:]
             self.speech_start = None
             self.vad.reset_states()
+
+            if end < len(self.audio_buffer):
+                self.audio_buffer = self.audio_buffer[end:]
+            else:
+                self.audio_buffer = np.zeros(0, dtype=np.float32)
 
     def start(self):
 
