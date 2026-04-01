@@ -56,7 +56,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
                     sentence_buffer += token
                     assistant_txt += token
-                    if sentence_buffer.strip().endswith(("।", ".", "?", "!")):
+                    if any(p in sentence_buffer for p in ("।", ".", "?", "!")):
 
                         clean = sentence_buffer.strip()
 
