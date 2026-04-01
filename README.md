@@ -1,4 +1,3 @@
-```markdown
 # Real-Time Voice AI Assistant (Streaming + Interruptible)
 
 A low-latency, real-time voice assistant built with a modular architecture using VAD + STT + LLM + TTS, supporting natural conversation flow, streaming responses, and user interruption (barge-in).
@@ -310,4 +309,3 @@ To build a production-grade, real-time conversational AI system that:
 - Feels natural like human conversation
 - Works locally with minimal resources
 - Scales into a deployable product
-```
