@@ -13,6 +13,10 @@ class EarDrum:
 
             audio = self.speech_q.get()
 
+            if audio is None:
+                self.speech_q.task_done()
+                return
+
             segments, info = self.model.transcribe(
                 audio,
                 beam_size=1,

@@ -5,6 +5,7 @@ import sounddevice as sd
 from kokoro import KPipeline
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 import time
 from conversation.controller import ConversationController
 
@@ -14,6 +15,7 @@ class BrainVoice:
     def __init__(self, text_q: Queue, controller: ConversationController):
         self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+        self.local_model = ChatOllama(model="gemma4:e2b", temperature=0.2)
         self.system_prompt = """
 You are a voice assisstant who talks in hindi, your task is make simple conversations based on user input. Your text output will be used in text-to-speech engine, so it is neccessary to produce correct hindi text with proper punctuations according to the conversation, for native english words that don't have a translation in hindi produce text, pronounced same as english when spoken
 """
@@ -39,6 +41,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
             sentence_buffer = ""
 
+            print("Assistant:", end=" ")
             conversation = [
                 SystemMessage(content=self.system_prompt)
             ]
@@ -46,10 +49,9 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
             conversation.append(HumanMessage(content=user))
 
 
-            print("Assistant:", end=" ")
             assistant_txt = ""
             try:
-                for chunk in self.model.stream(conversation):
+                for chunk in self.local_model.stream(conversation):
 
                     token = chunk.content or ""
                     print(token, end="", flush=True)
@@ -71,7 +73,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
                 if sentence_buffer.strip():
                     self.q.put(sentence_buffer.strip())
-                print("Assistant text: ", assistant_txt)
+
                 self.history.append(HumanMessage(content=user))
                 self.history.append(AIMessage(content=assistant_txt.strip()))
 
@@ -96,7 +98,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
             for _, _, audio in generator:
                 if self.controller.should_interrupt():
-                    print("Interrupt was called somehow...")
+                    print("Interrupt was called...")
                     while not self.q.empty():
                         try:
                             self.q.get_nowait()

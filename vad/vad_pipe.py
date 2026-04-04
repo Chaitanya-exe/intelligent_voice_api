@@ -33,9 +33,6 @@ class VadPipeline:
         if result is None:
             return
         
-        if self.controller.ai_speaking:
-            self.audio_buffer = np.zeros(0, dtype=np.float32)
-            return
         
         # speech started
         if "start" in result:
@@ -56,22 +53,26 @@ class VadPipeline:
         # speech ended
         if "end" in result and self.speech_start is not None:
 
-            end = result["end"]
-
             if self.speech_start is None:
                 return
             
+            end = result["end"]
+            
             if end <= self.speech_start:
+                self.speech_start = None
                 return
 
             segment = self.audio_buffer[self.speech_start:end]
 
             print("Speech segment length:", segment.shape)
 
-            self.controller.stop_user()
-
             if len(segment) > 4000:
                 self.q.put(segment)
+            else:
+                self.q.put(None)
+                
+            self.controller.stop_user()
+
 
             self.speech_start = None
             self.vad.reset_states()
