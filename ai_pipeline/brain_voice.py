@@ -7,17 +7,48 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 import time
-from conversation.controller import ConversationController
+from ai_pipeline.controller import ConversationController
 
 class BrainVoice:
+
     MAX_HISTORY = 20
+    STRONG_BREAKS = ("।", ".", "?", "!", "|")
+    SOFT_BREAKS = (" लेकिन ", " तो ", " फिर ", " क्योंकि ")
+    MAX_CHARS = 60
+    MIN_WORDS = 3
+    MAX_LATENCY = 0.4
 
     def __init__(self, text_q: Queue, controller: ConversationController):
         self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-        self.local_model = ChatOllama(model="gemma4:e2b", temperature=0.2)
+        self.local_model = ChatOllama(model="gemma4:e2b", temperature=0)
         self.system_prompt = """
-You are a voice assisstant who talks in hindi, your task is make simple conversations based on user input. Your text output will be used in text-to-speech engine, so it is neccessary to produce correct hindi text with proper punctuations according to the conversation, for native english words that don't have a translation in hindi produce text, pronounced same as english when spoken
+Your name is Anushka and you have a female persona.
+You are a professional AI sales agent making cold calls to potential customers.
+Your goal is to have a natural, human-like conversation and introduce a product or service in a polite and engaging way.
+Strict rules:
+- Speak only in Hindi.
+- Use simple, conversational Hindi (natural spoken language).
+- Keep sentences short and easy to speak.
+- Use proper punctuation (। ? ! ,) to create natural pauses.
+- Do not speak too fast or produce long paragraphs.
+Conversation behavior:
+- Start with a greeting and introduction.
+- Ask if this is a good time to talk.
+- If the user agrees, introduce the product clearly.
+- Ask follow-up questions to understand interest.
+- Be polite, not pushy.
+- Handle hesitation naturally.
+- Keep the tone friendly and confident.
+Speech optimization:
+- Avoid difficult words.
+- Use pauses like "..." when needed.
+- Make responses sound natural when spoken aloud.
+- Convert English terms into Hindi pronunciation where needed.
+Example tone:
+"नमस्ते... क्या मैं आपसे दो मिनट बात कर सकता हूँ?"
+Remember:
+You are speaking over a call, not writing text.
 """
         self.q = Queue()
         self.history = []
@@ -30,6 +61,24 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
         )
         self.speaker_stream.start()
     
+
+    def should_flush(self, buffer: str, last_flush):
+        now = time.time()
+
+        if buffer.endswith(self.STRONG_BREAKS):
+            return True
+        
+        if len(buffer) >= self.MAX_CHARS:
+            return True
+        
+        if now - last_flush > self.MAX_LATENCY:
+            return True
+        
+        return False
+    
+    def is_valid_chunk(self, chunk):
+        return len(chunk.split(" ")) >= self.MIN_WORDS
+
     def llm_worker(self):
         while True:
 
@@ -50,6 +99,7 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
 
             assistant_txt = ""
+            last_flush = time.time()
             try:
                 for chunk in self.local_model.stream(conversation):
 
@@ -58,21 +108,24 @@ You are a voice assisstant who talks in hindi, your task is make simple conversa
 
                     sentence_buffer += token
                     assistant_txt += token
-                    if any(p in sentence_buffer for p in ("।", ".", "?", "!")):
+                    if self.should_flush(sentence_buffer, last_flush):
 
                         clean = sentence_buffer.strip()
 
                         if clean:
 
-                            if self.q.qsize() > 3:
-                                time.sleep(0.05)
+                            while self.q.qsize() > 3:
+                                time.sleep(0.02)
 
                             self.q.put(clean)
+                            last_flush = time.time()
 
                         sentence_buffer = ""
+                
+                final = sentence_buffer.strip()
 
-                if sentence_buffer.strip():
-                    self.q.put(sentence_buffer.strip())
+                if final:
+                    self.q.put(final)
 
                 self.history.append(HumanMessage(content=user))
                 self.history.append(AIMessage(content=assistant_txt.strip()))

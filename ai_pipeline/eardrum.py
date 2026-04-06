@@ -15,7 +15,7 @@ class EarDrum:
 
             if audio is None:
                 self.speech_q.task_done()
-                return
+                continue
 
             segments, info = self.model.transcribe(
                 audio,
@@ -30,7 +30,9 @@ class EarDrum:
 
             if not text:
                 print("No text detected")
-                return
+                self.speech_q.task_done()
+                continue
+
             self.text_q.put(text)
 
             self.speech_q.task_done()

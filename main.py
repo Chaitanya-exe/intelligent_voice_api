@@ -1,8 +1,8 @@
 from threading import Thread
-from brain.brain_voice import BrainVoice
-from ears.eardrum import EarDrum
-from vad.vad_pipe import VadPipeline
-from conversation.controller import ConversationController
+from ai_pipeline.brain_voice import BrainVoice
+from ai_pipeline.eardrum import EarDrum
+from ai_pipeline.vad_pipe import VadPipeline
+from ai_pipeline.controller import ConversationController
 from queue import Queue
 import time
 

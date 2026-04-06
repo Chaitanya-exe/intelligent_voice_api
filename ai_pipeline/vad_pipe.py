@@ -2,7 +2,7 @@ import sounddevice as sd
 import numpy as np
 from silero_vad import load_silero_vad
 from silero_vad.utils_vad import VADIterator
-from conversation.controller import ConversationController
+from ai_pipeline.controller import ConversationController
 from queue import Queue
 
 class VadPipeline:
@@ -32,7 +32,9 @@ class VadPipeline:
 
         if result is None:
             return
-        
+    
+        if self.controller.ai_speaking:
+            return
         
         # speech started
         if "start" in result:
@@ -70,7 +72,7 @@ class VadPipeline:
                 self.q.put(segment)
             else:
                 self.q.put(None)
-                
+
             self.controller.stop_user()
 
 

@@ -25,7 +25,6 @@ class ConversationController:
     def stop_ai(self):
         with self.lock:
             self.ai_speaking = False
-            self.interrupt = True
     
     def should_interrupt(self):
         with self.lock:
