@@ -11,23 +11,24 @@ async def media_stream(ws: WebSocket):
         await ws.accept()
 
         print("service connected")
+        with open("call.wav", "wb") as file:
+            while True:
+                msg = await ws.receive_text()
+                data = json.loads(msg)  
 
-        while True:
-            msg = await ws.receive_text()
-            data = json.loads(msg)  
+                event = data.get("event")
 
-            event = data.get("event")
+                if event == "start":
+                    print(f"stream started... with stream SID: {data.get("streamSid")}")
+                elif event == "media":
+                    audio = data['media']['payload']
+                    audio_bytes = base64.b64decode(audio)
+                    audio = mu_to_pcm(audio_bytes)
+                    file.write(audio)
 
-            if event == "start":
-                print("stream started...")
-            elif event == "media":
-                audio = data['media']['payload']
-                audio_bytes = base64.b64decode(audio)
-                audio = mu_to_pcm(audio_bytes)
-                
-            elif event == "stop":
-                print("stream ended.")
-                break
+                elif event == "stop":
+                    print("stream ended.")
+                    break
 
 
     except Exception as e:

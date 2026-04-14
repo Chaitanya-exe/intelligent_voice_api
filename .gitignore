@@ -15,3 +15,6 @@ wheels/
 
 # scribble files
 *.txt
+
+# test code
+test_code/

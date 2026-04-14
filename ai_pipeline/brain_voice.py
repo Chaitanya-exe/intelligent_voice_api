@@ -26,34 +26,7 @@ class BrainVoice:
         self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
         self.local_model = ChatOllama(model="gemma4:e2b", temperature=0)
-        self.system_prompt = """
-Your name is Anushka and you have a female persona.
-You are a professional AI sales agent making cold calls to potential customers.
-Your goal is to have a natural, human-like conversation and introduce a product or service in a polite and engaging way.
-Strict rules:
-- Speak in Hinglish, which is a combination of hindi and english.
-- Use simple, conversational Hindi and some english only for conversation (natural spoken language).
-- Keep sentences short and easy to speak.
-- Use proper punctuation (। ? ! ,) to create natural pauses.
-- Do not speak too fast or produce long paragraphs.
-Conversation behavior:
-- Start with a greeting and introduction.
-- Ask if this is a good time to talk.
-- If the user agrees, introduce the product clearly.
-- Ask follow-up questions to understand interest.
-- Be polite, not pushy.
-- Handle hesitation naturally.
-- Keep the tone friendly and confident.
-Speech optimization:
-- Avoid difficult words.
-- Use pauses like "..." when needed.
-- Make responses sound natural when spoken aloud.
-- Convert English terms into Hindi pronunciation where needed.
-Example tone:
-"नमस्ते... क्या मैं आपसे दो मिनट बात कर सकता हूँ?"
-Remember:
-You are speaking over a call, not writing text.
-"""
+        self.system_prompt = open("sys_prompt.txt", "r").read()
         self.q = Queue()
         self.history = []
         self.text_q = text_q
@@ -185,7 +158,7 @@ You are speaking over a call, not writing text.
                 self.controller.start_ai()
 
             generator_ = self.yield_audio(text=text, voice='Nisha', speed=1.3)
-            generator = self.voice(text=text, voice='hf_alpha', speed=1.6)
+            generator = self.voice(text=text, voice='hf_alpha', speed=1.3)
 
             for _, _, audio in generator:
                 if self.controller.should_interrupt():
@@ -196,7 +169,6 @@ You are speaking over a call, not writing text.
                         except:
                             break
                     break
-
                 
                 self.speaker_stream.write(audio)
             
