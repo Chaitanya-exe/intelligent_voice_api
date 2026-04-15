@@ -22,7 +22,7 @@ class BrainVoice:
     MAX_LATENCY = 0.4
     TTS_API = os.getenv("TTS_API","")
     TTS_URL = "https://yourvoic.com/api/v1/tts/stream"
-    def __init__(self, text_q: Queue, controller: ConversationController):
+    def __init__(self, text_q: Queue, controller: ConversationController, audio_q: Queue):
         self.voice = KPipeline(lang_code='h', repo_id='hexgrad/Kokoro-82M')
         self.model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
         self.local_model = ChatOllama(model="gemma4:e2b", temperature=0)
@@ -31,12 +31,7 @@ class BrainVoice:
         self.history = []
         self.text_q = text_q
         self.controller = controller
-        self.speaker_stream = sd.OutputStream(
-            channels=1,
-            samplerate=24000,
-            dtype="float32"
-        )
-        self.speaker_stream.start()
+        self.audio_q = audio_q
     
 
     def should_flush(self, buffer: str, last_flush):
@@ -170,7 +165,7 @@ class BrainVoice:
                             break
                     break
                 
-                self.speaker_stream.write(audio)
+                self.audio_q.put(audio)
             
             self.controller.stop_ai()
             self.q.task_done()
