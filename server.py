@@ -71,11 +71,12 @@ async def trigger_call():
 @app.websocket('/twiml')
 async def media_stream(ws: WebSocket):
     
+    session = VoiceSession()
+    session.start()
+    
     await ws.accept()
     print("service connected")
 
-    session = VoiceSession()
-    session.start()
     try:    
         sender_task = None
         while True:
@@ -96,7 +97,7 @@ async def media_stream(ws: WebSocket):
                 audio = data['media']['payload']
                 audio_bytes = base64.b64decode(audio)
                 audio = mu_to_pcm(audio_bytes)
-                session.speech_q.put(audio)
+                session.input_stream.put(audio)
 
             elif event == "stop":
                 print("stream ended.")

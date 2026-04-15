@@ -8,17 +8,18 @@ import threading
 class VoiceSession:
 
     def __init__(self):
-        self.text_q, self.speech_q, self.audio_q = Queue(), Queue(), Queue()
+        self.input_stream, self.transcribe_q, self.text_q, self.audio_q = Queue(), Queue(), Queue(), Queue()
         self.sid = ""
         controller = ConversationController()
 
         self.vad = VadPipeline(
-            speech_q=self.speech_q,
-            controller=controller
+            input_q=self.input_stream,
+            controller=controller,
+            output_q=self.transcribe_q
         )
 
         self.ears = EarDrum(
-            speech_q=self.speech_q,
+            speech_q=self.transcribe_q,
             text_q=self.text_q
         )
 
@@ -32,7 +33,7 @@ class VoiceSession:
         self.sid = call_sid
 
     def start(self):
-        threading.Thread(target=self.vad.start, daemon=True).start()
+        threading.Thread(target=self.vad.worker, daemon=True).start()
         threading.Thread(target=self.ears.worker, daemon=True).start()
         threading.Thread(target=self.brain.llm_worker, daemon=True).start()
         threading.Thread(target=self.brain.tts_worker, daemon=True).start()
